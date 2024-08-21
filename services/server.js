@@ -1,21 +1,99 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+//import authenticateToken from "./auth.js";
 
 const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
 
-app.get("/users", async (req, res) => {
-  if (req.query) {
-    const userRet = await prisma.user.findFirst({
+app.get("/cards", async (req, res) => {
+  try {
+    const { email } = req.user;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    const cards = await prisma.card.findMany({
       where: {
-        name: req.query.name,
-        age: req.query.age,
-        email: req.query.email,
+        authorId: user.id, // Filtra os cards pelo ID do usuário
       },
     });
-    const isValid = !!userRet;
-    res.json({ success: isValid });
+
+    res.status(200).json(cards);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erro ao buscar os cards" });
+  }
+});
+
+app.post("/cards", async (req, res) => {
+  try {
+    const { email } = req.user;
+    const { todo } = req.body;
+
+    console.log({ email });
+
+    // Encontre o usuário baseado no email
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    // Crie um novo card associado ao usuário
+    const newCard = await prisma.card.create({
+      data: {
+        todo,
+        authorId: user.id, // Associe o card ao usuário logado
+      },
+    });
+
+    res.status(201).json(newCard);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erro ao criar o card" });
+  }
+});
+
+app.delete("/cards", async (req, res) => {
+  try {
+    const { email } = req.user;
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    const card = await prisma.card.findUnique({
+      where: { id },
+    });
+
+    if (!card || card.authorId !== user.id) {
+      return res
+        .status(403)
+        .json({ message: "Acesso negado ou Card não encontrado" });
+    }
+
+    // Deletar o Card
+    await prisma.card.delete({
+      where: { id },
+    });
+
+    res.status(200).json({ message: "Card deletado com sucesso!" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erro ao deletar o card" });
   }
 });
 
@@ -27,6 +105,15 @@ app.post("/users", async (req, res) => {
     },
   });
   res.status(201).json({ message: "Registro atualizado com sucesso!" });
+});
+
+app.delete("/users", async (req, res) => {
+  await prisma.user.delete({
+    where: {
+      id: req.params.id,
+    },
+  });
+  res.status(200).json({ message: "Usuario deletado com sucesso!" });
 });
 
 app.post("/login", async (req, res) => {
@@ -54,7 +141,3 @@ app.post("/login", async (req, res) => {
 });
 
 app.listen(3000);
-
-/*
-  Get
-*/
