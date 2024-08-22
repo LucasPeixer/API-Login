@@ -1,10 +1,12 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+import cors from "cors";
 //import authenticateToken from "./auth.js";
 
 const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 app.get("/cards", async (req, res) => {
   try {
@@ -96,7 +98,7 @@ app.delete("/cards", async (req, res) => {
     res.status(500).json({ message: "Erro ao deletar o card" });
   }
 });
-
+// =========================== USER===========================
 app.post("/users", async (req, res) => {
   await prisma.user.create({
     data: {
@@ -115,7 +117,7 @@ app.delete("/users", async (req, res) => {
   });
   res.status(200).json({ message: "Usuario deletado com sucesso!" });
 });
-
+// ==============================Login=============================
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
